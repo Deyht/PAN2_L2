@@ -31,6 +31,11 @@ for i in range(0,N):
 	a_v[0,i] = vx_0 
 	a_v[1,i] = -g*(i*dt) + vy_0
 
+#ou, sans boucle
+# a_r[0,:] = vx_0
+# a_r[1,:] = -0.5*g*t + vy_0+t
+# a_v[0,:] = vx_0
+# a_v[1,:] = -g*t + vy_0
 
 
 
@@ -111,6 +116,58 @@ for i in range(0,N-1):
 	
 
 
+######################## ########################
+#     Methode Velocity-Verlet with friction
+######################## ########################
+
+rho_air = 1.3
+C_f = 0.45
+A = np.pi*(0.15)**2
+
+r4 = np.zeros((2,N),dtype = float)
+v4 = np.zeros((2,N),dtype = float)
+
+r4[:,0] = 0.0
+v4[0,0] = vx_0
+v4[1,0] = vy_0
+
+for i in range(0,N-1):
+	a2 = np.array([1./m*(-0.5*1.3*C_f*A*np.sqrt(v4[0,i]**2+v4[1,i]**2)*v4[0,i]),-g + 1./m*(-0.5*1.3*C_f*A*np.sqrt(v4[0,i]**2+v4[1,i]**2)*v4[1,i])])
+	r4[:,i+1] = r4[:,i] + v4[:,i]*dt + 0.5*(dt**2)*a2[:]
+	#In our case acceleraction is constant over time, so da/dt = 0
+	v4[:,i+1] = v4[:,i] + a2[:]*dt
+	
+	
+	
+######################## ########################
+#            Methode RK4 with friction
+######################## ########################
+
+def f2(r, v):
+	vect = np.zeros(4)
+	vect[0] = v[0]
+	vect[1] = v[1]
+	vect[2] = 1./m*(-0.5*1.3*C_f*A*np.sqrt(v[0]**2+v[1]**2)*v[0])
+	vect[3] = -g + 1./m*(-0.5*1.3*C_f*A*np.sqrt(v[0]**2+v[1]**2)*v[1])
+	return vect
+
+
+r5 = np.zeros((2,N),dtype = float)
+v5 = np.zeros((2,N),dtype = float)
+
+r5[:,0] = 0.0
+v5[0,0] = vx_0
+v5[1,0] = vy_0
+
+for i in range(0,N-1):
+	k1 = f2(r5[:,i],v5[:,i])
+	k2 = f2(r5[:,i]+ k1[0:2]*dt*0.5,v5[:,i]+ k1[2:4]*dt*0.5)
+	k3 = f2(r5[:,i]+ k2[0:2]*dt*0.5,v5[:,i]+ k2[2:4]*dt*0.5)
+	k4 = f2(r5[:,i]+ k3[0:2]*dt,v5[:,i]+ k3[2:4]*dt)
+	k = (k1 + 2.*k2 + 2.*k3 + k4)/6.
+	r5[:,i+1] = r5[:,i] + dt*k[0:2]
+	v5[:,i+1] = v5[:,i] + dt*k[2:4]
+
 
 
 
@@ -123,6 +180,8 @@ plt.plot(a_r[0,:], a_r[1,:], label="analytique")
 plt.plot(r[0,:],r[1,:], label="Euler")
 plt.plot(r2[0,:],r2[1,:],label="RK4")
 plt.plot(r3[0,:],r3[1,:],label="Velocity-Verlet")
+plt.plot(r4[0,:],r4[1,:],label="Velocity-Verlet Friction")
+plt.plot(r5[0,:],r5[1,:],label="RK4 friction")
 plt.legend()
 plt.savefig("pos.png")
 
@@ -131,9 +190,9 @@ plt.clf()
 ###### CHANGE COMMENTED LINES TO SEE CHANGES BETWEEN METHODS ######
 ## POSITION ERRORS ##
 #plt.plot(t[:], a_r[0,:]-r[0,:],label="E_x EULER")
-#plt.plot(t[:], a_r[1,:]-r[1,:],label="E_y EULER")
+plt.plot(t[:], a_r[1,:]-r[1,:],label="E_y EULER")
 #plt.plot(t[:], a_r[0,:]-r2[0,:],label="E_x RK4")
-plt.plot(t[:], a_r[1,:]-r2[1,:],label="E_y RK4")
+#plt.plot(t[:], a_r[1,:]-r2[1,:],label="E_y RK4")
 #plt.plot(t[:], a_r[0,:]-r3[0,:],label="E_x V-V")
 plt.plot(t[:], a_r[1,:]-r3[1,:],label="E_y V-V")
 
@@ -162,7 +221,7 @@ from scipy.integrate import odeint
 
 pos = np.zeros((2,N),dtype = float)
 
-dt = 0.1
+dt = 0.4
 tf = 30.
 N = int(tf/dt)
 
@@ -177,7 +236,7 @@ pos2 = np.zeros((2,N),dtype = float)
 pos2[0,0] = 1.
 pos2[1,0] = 0.
 
-#Define the seconf member function f based on the EDO system definition
+#Define the second member function f based on the EDO system definition
 def derivee(vec,t):
 	return np.array([-0.25*vec[0] + vec[1], -vec[0] - 0.25*vec[1]])
 
@@ -207,7 +266,7 @@ ode_pos = odeint(derivee,[1,0],t)
 
 
 plt.plot(pos[0,:],pos[1,:], label="Euler")
-#plt.plot(pos2[0,:],pos2[1,:], label="RK4")
+plt.plot(pos2[0,:],pos2[1,:], label="RK4")
 plt.plot(ode_pos[:,0], ode_pos[:,1], label="odeint")
 plt.legend()
 plt.savefig("ex2_pos.png")
